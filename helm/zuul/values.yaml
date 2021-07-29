@@ -1,0 +1,171 @@
+#########################################
+# Log Server
+#########################################
+
+#########################################
+# MariaDB
+#########################################
+mariadb:
+  global:
+    imageRegistry: ""
+    imagePullSecrets: []
+    storageClass: ""
+  nameOverride: ""
+  fullnameOverride: ""
+  clusterDomain: cluster.local
+  commonAnnotations: {}
+  commonLabels: {}
+  schedulerName: ""
+  extraDeploy: []
+  diagnosticMode:
+    enabled: false
+    command:
+      - sleep
+    args:
+      - infinity
+  image:
+    registry: docker.io
+    repository: bitnami/mariadb
+    tag: 10.5.11-debian-10-r25
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    debug: false
+  architecture: standalone
+  auth:
+    rootPassword: ""
+    database: my_database
+    username: ""
+    password: ""
+    replicationUser: replicator
+    replicationPassword: ""
+    existingSecret: ""
+    forcePassword: false
+    usePasswordFiles: false
+    customPasswordFiles: {}
+  initdbScripts: {}
+  initdbScriptsConfigMap: ""
+  primary:
+    command: []
+    args: []
+    hostAliases: []
+    configuration: |-
+      [mysqld]
+      skip-name-resolve
+      explicit_defaults_for_timestamp
+      basedir=/opt/bitnami/mariadb
+      plugin_dir=/opt/bitnami/mariadb/plugin
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      tmpdir=/opt/bitnami/mariadb/tmp
+      max_allowed_packet=16M
+      bind-address=0.0.0.0
+      pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+      log-error=/opt/bitnami/mariadb/logs/mysqld.log
+      character-set-server=UTF8
+      collation-server=utf8_general_ci
+
+      [client]
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      default-character-set=UTF8
+      plugin_dir=/opt/bitnami/mariadb/plugin
+
+      [manager]
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+    existingConfiguration: ""
+    updateStrategy: RollingUpdate
+    rollingUpdatePartition: ""
+    podAnnotations: {}
+    podAffinityPreset: ""
+    podAntiAffinityPreset: soft
+    nodeAffinityPreset:
+      type: ""
+      key: ""
+      values: []
+    affinity: {}
+    nodeSelector: {}
+    tolerations: []
+    priorityClassName: ""
+    podSecurityContext:
+      enabled: true
+      fsGroup: 1001
+    containerSecurityContext:
+      enabled: true
+      runAsUser: 1001
+    resources:
+      limits: {}
+      requests: {}
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 120
+      periodSeconds: 10
+      timeoutSeconds: 1
+      failureThreshold: 3
+      successThreshold: 1
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 1
+      failureThreshold: 3
+      successThreshold: 1
+    customLivenessProbe: {}
+    customReadinessProbe: {}
+    startupWaitOptions: {}
+    extraFlags: ""
+    extraEnvVars: []
+    extraEnvVarsCM: ""
+    extraEnvVarsSecret: ""
+    persistence:
+      enabled: true
+      existingClaim: ""
+      subPath: ""
+      storageClass: ""
+      annotations: {}
+      accessModes:
+        - ReadWriteOnce
+      size: 8Gi
+      selector: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    initContainers: []
+    sidecars: []
+    service:
+      type: ClusterIP
+      port: 3306
+      nodePort: ""
+      clusterIP: ""
+      loadBalancerIP: ""
+      loadBalancerSourceRanges: []
+      annotations: {}
+    pdb:
+      enabled: false
+      minAvailable: 1
+      maxUnavailable: ""
+    revisionHistoryLimit: 10
+
+#########################################
+# Nodepool Launcher
+#########################################
+
+#########################################
+# Worker Node
+#########################################
+
+#########################################
+# Zookeeper
+#########################################
+
+#########################################
+# Zuul Executor
+#########################################
+
+#########################################
+# Zuul Scheduler
+#########################################
+
+#########################################
+# Zuul Web
+#########################################
