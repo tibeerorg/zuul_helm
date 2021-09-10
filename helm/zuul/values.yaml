@@ -2,9 +2,31 @@
 # Log Server
 #########################################
 
+# still missing the mounts
+log_server:
+  fullname: logserver
+  revisionHistoryLimit: 10
+  updateStrategy: RollingUpdate
+  rollingUpdatePartition: ""
+  command: [""]
+  args: [""]
+  image:
+    registry: docker.io
+    repository: httpd
+    tag: alpine
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    debug: false
+  service:
+    type: ClusterIP
+    port: 80
+
+
 #########################################
 # MariaDB
 #########################################
+
+# need to reconfigure the mounts probably
 mariadb:
   global:
     imageRegistry: ""
@@ -13,8 +35,6 @@ mariadb:
   nameOverride: ""
   fullnameOverride: ""
   clusterDomain: cluster.local
-  commonAnnotations: {}
-  commonLabels: {}
   schedulerName: ""
   extraDeploy: []
   diagnosticMode:
@@ -150,22 +170,153 @@ mariadb:
 # Nodepool Launcher
 #########################################
 
+# still missing the mounts (certs und /etc/nodepool)
+nodepool_launcher:
+  fullname: nodepoollauncher
+  revisionHistoryLimit: 10
+  updateStrategy: RollingUpdate
+  rollingUpdatePartition: ""
+  command: [""]
+  args: [""]
+  image:
+    registry: docker.io
+    repository: zuul/nodepool-launcher
+    tag: 4.1.0
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    debug: false
+  service:
+    type: ClusterIP
+    port: 8022
+
+
 #########################################
 # Worker Node
 #########################################
+
+# still missing the mounts
+worker_node:
+  fullname: workernode
+  revisionHistoryLimit: 10
+  updateStrategy: RollingUpdate
+  rollingUpdatePartition: ""
+  command: ["apt-get update && DEBIAN_FRONTEND='noninteractive' apt-get -y install git openssh-server rsync; mkdir /var/run/sshd; chmod 0700 /root/.ssh; chown -R root:root /root/.ssh; /usr/sbin/sshd -D"]
+  args: [""]
+  image:
+    registry: docker.io
+    repository: ubuntu
+    tag: 20.04
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    debug: false
+  service:
+    type: ClusterIP
+    port: 22
+
 
 #########################################
 # Zookeeper
 #########################################
 
+# missing certs mount
+zookeeper:
+  fullname: zookeeper
+  fqdn: "zookeeper_1.example"
+  revisionHistoryLimit: 10
+  updateStrategy: RollingUpdate
+  rollingUpdatePartition: ""
+  command: ["zkServer.sh"]
+  args: ["start-foreground"]
+  image:
+    registry: docker.io
+    repository: zuul/zuul-executor
+    tag: 4.5.1
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    debug: false
+  service:
+    type: ClusterIP
+    port: 3306
+  persistence:
+    enabled: true
+    storageClass: "longhorn"
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+
+
 #########################################
 # Zuul Executor
 #########################################
+
+# missing mounts
+#       - "{{ component_conf_dirs.zuul }}:/etc/zuul/:z"
+#       - "{{ component_conf_dirs.ssh_keys }}:/var/ssh:z"
+#       - "{{ component_conf_dirs.certs }}:/var/certs:z"
+#       - "log_server:/srv/static/logs:z"
+#       - env files
+zuul_executor:
+  fullname: zuul_executor
+  revisionHistoryLimit: 10
+  updateStrategy: RollingUpdate
+  rollingUpdatePartition: ""
+  command: [""]
+  args: [""]
+  image:
+    registry: docker.io
+    repository: zuul/zuul-executor
+    tag: 4.5.1
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    debug: false
+  service:
+    type: ClusterIP
+    port: 7900
+  persistence:
+    enabled: true
+    storageClass: "longhorn"
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+
 
 #########################################
 # Zuul Scheduler
 #########################################
 
+# missing mounts
+#       - "{{ component_conf_dirs.zuul }}:/etc/zuul/:z"
+#       - "{{ component_conf_dirs.ssh_keys }}:/var/ssh:z"
+#       - "{{ component_conf_dirs.certs }}:/var/certs:z"
+#       - "{{ component_conf_dirs.scheduler }}/wait-to-start.sh:/wait-to-start.sh:ro"
+#       - env files
+zuul_scheduler:
+  fullname: zuul_scheduler
+  revisionHistoryLimit: 10
+  updateStrategy: RollingUpdate
+  rollingUpdatePartition: ""
+  command: ["sh -c '/wait-to-start.sh && zuul-scheduler -f'"]
+  args: [""]
+  image:
+    registry: docker.io
+    repository: zuul/zuul-scheduler
+    tag: 4.5.1
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    debug: false
+  service:
+    type: ClusterIP
+    port: 4730
+  persistence:
+    enabled: true
+    storageClass: "longhorn"
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
+
+
 #########################################
 # Zuul Web
 #########################################
+
+

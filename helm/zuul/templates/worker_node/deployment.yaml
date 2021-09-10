@@ -1,61 +1,47 @@
-apiVersion: apps/v1
+apiVersion: {{ include "common.capabilities.deployment.apiVersion" . }}
 kind: Deployment
 metadata:
-  name: {{ include "zuul.fullname" . }}
-  labels:
-    {{- include "zuul.labels" . | nindent 4 }}
+  name: {{ include "worker_node.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: worker_node
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: 1
+  revisionHistoryLimit: {{ .Values.worker_node.revisionHistoryLimit }}
   selector:
-    matchLabels:
-      {{- include "zuul.selectorLabels" . | nindent 6 }}
+    matchLabels: {{ include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker_node
+  serviceName: {{ include "worker_node.fullname" . }}
+  updateStrategy:
+    type: {{ .Values.worker_node.updateStrategy }}
+    {{- if (eq "Recreate" .Values.worker_node.updateStrategy) }}
+    rollingUpdate: null
+    {{- else if .Values.worker_node.rollingUpdatePartition }}
+    rollingUpdate:
+      partition: {{ .Values.worker_node.rollingUpdatePartition }}
+    {{- end }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      labels:
-        {{- include "zuul.selectorLabels" . | nindent 8 }}
+        {{- if (include "worker_node.createConfigmap" .) }}
+        checksum/configuration: {{ include (print $.Template.BasePath "/worker_node/configmap.yaml") . | sha256sum }}
+        {{- end }}
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: worker_node
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "zuul.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: worker_node
+          image: {{ include "worker_node.image" . }}
+          imagePullPolicy: {{ .Values.worker_node.image.pullPolicy | quote }}
+          command: {{ .Values.worker_node.command }}
+          args: {{ .Values.worker_node.args }}
           ports:
-            - name: http
-              containerPort: 80
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+            - name: ssh
+              containerPort: {{ .Values.worker_node.service.port }}
+          volumeMounts:
+            - name: ssh
+              mountPath: /root/.ssh
+  volumes:
+    - name: ssh
+      persistentVolumeClaim:
+        claimName: 'zuul_ssh'

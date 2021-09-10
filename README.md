@@ -1,5 +1,7 @@
 # Zuul Helm Chart
 
+https://opendev.org/zuul/zuul-operator/src/branch/master/zuul_operator/templates
+
 Required Containers:
 - mariadb
 - zookeeper

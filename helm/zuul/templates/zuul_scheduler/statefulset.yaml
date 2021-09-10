@@ -1,61 +1,47 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: {{ include "common.capabilities.staetfulset.apiVersion" . }}
+kind: StatefulSet
 metadata:
-  name: {{ include "zuul.fullname" . }}
-  labels:
-    {{- include "zuul.labels" . | nindent 4 }}
+  name: {{ include "zuul_scheduler.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: zuul_scheduler
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: 1
+  revisionHistoryLimit: {{ .Values.zuul_scheduler.revisionHistoryLimit }}
   selector:
-    matchLabels:
-      {{- include "zuul.selectorLabels" . | nindent 6 }}
+    matchLabels: {{ include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: zuul_scheduler
+  serviceName: {{ include "zuul_scheduler.fullname" . }}
+  updateStrategy:
+    type: {{ .Values.zuul_scheduler.updateStrategy }}
+    {{- if (eq "Recreate" .Values.zuul_scheduler.updateStrategy) }}
+    rollingUpdate: null
+    {{- else if .Values.zuul_scheduler.rollingUpdatePartition }}
+    rollingUpdate:
+      partition: {{ .Values.zuul_scheduler.rollingUpdatePartition }}
+    {{- end }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      labels:
-        {{- include "zuul.selectorLabels" . | nindent 8 }}
+        {{- if (include "zuul_scheduler.createConfigmap" .) }}
+        checksum/configuration: {{ include (print $.Template.BasePath "/zuul_scheduler/configmap.yaml") . | sha256sum }}
+        {{- end }}
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: zuul_scheduler
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "zuul.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: zuul_scheduler
+          image: {{ include "zuul_scheduler.image" . }}
+          imagePullPolicy: {{ .Values.zuul_scheduler.image.pullPolicy | quote }}
+          command: {{ .Values.zuul_scheduler.command }}
+          args: {{ .Values.zuul_scheduler.args }}
           ports:
-            - name: http
-              containerPort: 80
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+            - name: gearman
+              containerPort: {{ .Values.zuul_scheduler.service.port }}
+          volumeMounts:
+            - name: ssh
+              mountPath: /root/.ssh
+  volumes:
+    - name: ssh
+      persistentVolumeClaim:
+        claimName: 'zuul_ssh'

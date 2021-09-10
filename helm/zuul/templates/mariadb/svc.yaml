@@ -4,46 +4,46 @@ metadata:
   name: {{ include "mariadb.primary.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels: {{- include "common.labels.standard" . | nindent 4 }}
-    app.kubernetes.io/component: primary
-    {{- if .Values.commonLabels }}
-    {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+    app.kubernetes.io/component: mariadb
+    {{- if .Values.mariadb.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.mariadb.commonLabels "context" $ ) | nindent 4 }}
     {{- end }}
   annotations:
-    {{- if .Values.commonAnnotations }}
-    {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+    {{- if .Values.mariadb.commonAnnotations }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.mariadb.commonAnnotations "context" $ ) | nindent 4 }}
     {{- end }}
-    {{- if .Values.primary.service.annotations }}
-    {{- include "common.tplvalues.render" ( dict "value" .Values.primary.service.annotations "context" $ ) | nindent 4 }}
+    {{- if .Values.mariadb.primary.service.annotations }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.mariadb.primary.service.annotations "context" $ ) | nindent 4 }}
     {{- end }}
-    {{- if and .Values.metrics.enabled .Values.metrics.annotations }}
-    {{- include "common.tplvalues.render" ( dict "value" .Values.metrics.annotations "context" $ ) | nindent 4 }}
+    {{- if and .Values.mariadb.metrics.enabled .Values.mariadb.metrics.annotations }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.mariadb.metrics.annotations "context" $ ) | nindent 4 }}
     {{- end }}
 spec:
-  type: {{ .Values.primary.service.type }}
-  {{- if and (eq .Values.primary.service.type "ClusterIP") .Values.primary.service.clusterIP }}
-  clusterIP: {{ .Values.primary.service.clusterIP }}
+  type: {{ .Values.mariadb.primary.service.type }}
+  {{- if and (eq .Values.mariadb.primary.service.type "ClusterIP") .Values.mariadb.primary.service.clusterIP }}
+  clusterIP: {{ .Values.mariadb.primary.service.clusterIP }}
   {{- end }}
-  {{- if and .Values.primary.service.loadBalancerIP (eq .Values.primary.service.type "LoadBalancer") }}
-  loadBalancerIP: {{ .Values.primary.service.loadBalancerIP }}
+  {{- if and .Values.mariadb.primary.service.loadBalancerIP (eq .Values.mariadb.primary.service.type "LoadBalancer") }}
+  loadBalancerIP: {{ .Values.mariadb.primary.service.loadBalancerIP }}
   {{- end }}
-  {{- if and (eq .Values.primary.service.type "LoadBalancer") .Values.primary.service.loadBalancerSourceRanges }}
-  loadBalancerSourceRanges: {{- toYaml .Values.primary.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- if and (eq .Values.mariadb.primary.service.type "LoadBalancer") .Values.mariadb.primary.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges: {{- toYaml .Values.mariadb.primary.service.loadBalancerSourceRanges | nindent 4 }}
   {{- end }}
   ports:
     - name: mysql
-      port: {{ .Values.primary.service.port }}
+      port: {{ .Values.mariadb.primary.service.port }}
       protocol: TCP
       targetPort: mysql
-      {{- if (and (or (eq .Values.primary.service.type "NodePort") (eq .Values.primary.service.type "LoadBalancer")) .Values.primary.service.nodePort) }}
-      nodePort: {{ .Values.primary.service.nodePort }}
-      {{- else if eq .Values.primary.service.type "ClusterIP" }}
+      {{- if (and (or (eq .Values.mariadb.primary.service.type "NodePort") (eq .Values.mariadb.primary.service.type "LoadBalancer")) .Values.mariadb.primary.service.nodePort) }}
+      nodePort: {{ .Values.mariadb.primary.service.nodePort }}
+      {{- else if eq .Values.mariadb.primary.service.type "ClusterIP" }}
       nodePort: null
       {{- end }}
-    {{- if .Values.metrics.enabled }}
+    {{- if .Values.mariadb.metrics.enabled }}
     - name: metrics
       port: 9104
       protocol: TCP
       targetPort: metrics
     {{- end }}
   selector: {{ include "common.labels.matchLabels" . | nindent 4 }}
-    app.kubernetes.io/component: primary
+    app.kubernetes.io/component: mariadb

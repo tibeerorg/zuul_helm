@@ -1,61 +1,64 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: {{ include "common.capabilities.statefulset.apiVersion" . }}
+kind: StatefulSet
 metadata:
-  name: {{ include "zuul.fullname" . }}
-  labels:
-    {{- include "zuul.labels" . | nindent 4 }}
+  name: {{ include "zookeeper.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: zookeeper
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: 1
+  revisionHistoryLimit: {{ .Values.zookeeper.revisionHistoryLimit }}
   selector:
-    matchLabels:
-      {{- include "zuul.selectorLabels" . | nindent 6 }}
+    matchLabels: {{ include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: zookeeper
+  serviceName: {{ include "zookeeper.fullname" . }}
+  updateStrategy:
+    type: {{ .Values.zookeeper.updateStrategy }}
+    {{- if (eq "Recreate" .Values.zookeeper.updateStrategy) }}
+    rollingUpdate: null
+    {{- else if .Values.zookeeper.rollingUpdatePartition }}
+    rollingUpdate:
+      partition: {{ .Values.zookeeper.rollingUpdatePartition }}
+    {{- end }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      labels:
-        {{- include "zuul.selectorLabels" . | nindent 8 }}
+        {{- if (include "zookeeper.createConfigmap" .) }}
+        checksum/configuration: {{ include (print $.Template.BasePath "/zookeeper/configmap.yaml") . | sha256sum }}
+        {{- end }}
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: zookeeper
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "zuul.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      hostname: {{ .Values.zookeeper.fqdn }}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: zookeeper
+          image: {{ include "zookeeper.image" . }}
+          imagePullPolicy: {{ .Values.zookeeper.image.pullPolicy | quote }}
+          command: {{ .Values.zookeeper.command }}
+          args: {{ .Values.zookeeper.args }}
           ports:
-            - name: http
-              containerPort: 80
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+            - name: client
+              containerPort: {{ .Values.zookeeper.service.port }}
+            - name: client-tls
+              containerPort: {{ .Values.zookeeper.service.tlsClientPort }}
+            - name: follower
+              containerPort: {{ .Values.zookeeper.service.followerPort }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/certs
+            - name: config
+              mountPath: /conf/zoo.cfg
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels: {{ include "common.labels.matchLabels" . | nindent 10 }}
+          app.kubernetes.io/component: zookeeper
+      spec:
+        accessModes:
+          {{- range .Values.zookeeper.persistence.accessModes }}
+          - {{ . | quote }}
+          {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.zookeeper.persistence.size | quote }}
+        {{ include "common.storage.class" (dict "persistence" .Values.zookeeper.persistence "global" .Values.zookeeper.global) }}

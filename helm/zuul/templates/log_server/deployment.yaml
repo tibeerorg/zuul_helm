@@ -1,61 +1,47 @@
-apiVersion: apps/v1
+apiVersion: {{ include "common.capabilities.deployment.apiVersion" . }}
 kind: Deployment
 metadata:
-  name: {{ include "zuul.fullname" . }}
-  labels:
-    {{- include "zuul.labels" . | nindent 4 }}
+  name: {{ include "log_server.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: log_server
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: 1
+  revisionHistoryLimit: {{ .Values.log_server.revisionHistoryLimit }}
   selector:
-    matchLabels:
-      {{- include "zuul.selectorLabels" . | nindent 6 }}
+    matchLabels: {{ include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: log_server
+  serviceName: {{ include "log_server.fullname" . }}
+  updateStrategy:
+    type: {{ .Values.log_server.updateStrategy }}
+    {{- if (eq "Recreate" .Values.log_server.updateStrategy) }}
+    rollingUpdate: null
+    {{- else if .Values.log_server.rollingUpdatePartition }}
+    rollingUpdate:
+      partition: {{ .Values.log_server.rollingUpdatePartition }}
+    {{- end }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      labels:
-        {{- include "zuul.selectorLabels" . | nindent 8 }}
+        {{- if (include "log_server.createConfigmap" .) }}
+        checksum/configuration: {{ include (print $.Template.BasePath "/log_server/configmap.yaml") . | sha256sum }}
+        {{- end }}
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: log_server
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "zuul.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: log_server
+          image: {{ include "log_server.image" . }}
+          imagePullPolicy: {{ .Values.log_server.image.pullPolicy | quote }}
+          command: {{ .Values.log_server.command }}
+          args: {{ .Values.log_server.args }}
           ports:
-            - name: http
-              containerPort: 80
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+            - name: web
+              containerPort: {{ .Values.log_server.service.port }}
+          volumeMounts:
+            - name: ssh
+              mountPath: /root/.ssh
+  volumes:
+    - name: ssh
+      persistentVolumeClaim:
+        claimName: 'zuul_ssh'

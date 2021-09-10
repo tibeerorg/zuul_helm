@@ -1,61 +1,47 @@
-apiVersion: apps/v1
+apiVersion: {{ include "common.capabilities.deployment.apiVersion" . }}
 kind: Deployment
 metadata:
-  name: {{ include "zuul.fullname" . }}
-  labels:
-    {{- include "zuul.labels" . | nindent 4 }}
+  name: {{ include "zuul_executor.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    app.kubernetes.io/component: zuul_executor
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: 1
+  revisionHistoryLimit: {{ .Values.zuul_executor.revisionHistoryLimit }}
   selector:
-    matchLabels:
-      {{- include "zuul.selectorLabels" . | nindent 6 }}
+    matchLabels: {{ include "common.labels.matchLabels" . | nindent 6 }}
+      app.kubernetes.io/component: zuul_executor
+  serviceName: {{ include "zuul_executor.fullname" . }}
+  updateStrategy:
+    type: {{ .Values.zuul_executor.updateStrategy }}
+    {{- if (eq "Recreate" .Values.zuul_executor.updateStrategy) }}
+    rollingUpdate: null
+    {{- else if .Values.zuul_executor.rollingUpdatePartition }}
+    rollingUpdate:
+      partition: {{ .Values.zuul_executor.rollingUpdatePartition }}
+    {{- end }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      labels:
-        {{- include "zuul.selectorLabels" . | nindent 8 }}
+        {{- if (include "zuul_executor.createConfigmap" .) }}
+        checksum/configuration: {{ include (print $.Template.BasePath "/zuul_executor/configmap.yaml") . | sha256sum }}
+        {{- end }}
+      labels: {{- include "common.labels.standard" . | nindent 8 }}
+        app.kubernetes.io/component: zuul_executor
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "zuul.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: zuul_executor
+          image: {{ include "zuul_executor.image" . }}
+          imagePullPolicy: {{ .Values.zuul_executor.image.pullPolicy | quote }}
+          command: {{ .Values.zuul_executor.command }}
+          args: {{ .Values.zuul_executor.args }}
           ports:
-            - name: http
-              containerPort: 80
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+            - name: executor
+              containerPort: {{ .Values.zuul_executor.service.port }}
+          volumeMounts:
+            - name: ssh
+              mountPath: /root/.ssh
+  volumes:
+    - name: ssh
+      persistentVolumeClaim:
+        claimName: 'zuul_ssh'

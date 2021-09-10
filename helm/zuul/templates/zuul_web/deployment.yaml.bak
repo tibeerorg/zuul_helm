@@ -5,34 +5,34 @@ metadata:
   labels:
     {{- include "zuul.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
+  {{- if not .Values.mariadb.mariab.autoscaling.enabled }}
+  replicas: {{ .Values.mariadb.mariab.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
       {{- include "zuul.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- with .Values.mariadb.mariab.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
         {{- include "zuul.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.imagePullSecrets }}
+      {{- with .Values.mariadb.mariab.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "zuul.serviceAccountName" . }}
       securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        {{- toYaml .Values.mariadb.mariab.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+            {{- toYaml .Values.mariadb.mariab.securityContext | nindent 12 }}
+          image: "{{ .Values.mariadb.mariab.image.repository }}:{{ .Values.mariadb.mariab.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.mariadb.mariab.image.pullPolicy }}
           ports:
             - name: http
               containerPort: 80
@@ -46,16 +46,16 @@ spec:
               path: /
               port: http
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
+            {{- toYaml .Values.mariadb.mariab.resources | nindent 12 }}
+      {{- with .Values.mariadb.mariab.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.affinity }}
+      {{- with .Values.mariadb.mariab.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.tolerations }}
+      {{- with .Values.mariadb.mariab.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
